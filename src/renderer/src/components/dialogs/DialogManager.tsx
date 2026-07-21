@@ -437,7 +437,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
 
           {activeTab === "sobre" && (
               <div className="flex flex-col items-center justify-center h-full text-center text-[rgb(var(--text-faint))] p-6">
-                <div className="w-20 h-20 bg-[rgb(var(--bg-overlay))] rounded-2xl flex items-center justify-center mb-6 overflow-hidden p-2">
+                <div className="w-32 h-32 bg-[rgb(var(--bg-overlay))] rounded-2xl flex items-center justify-center mb-6 overflow-hidden p-2">
                   <img src={logoUrl} alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
                 </div>
                 <h2 className="text-xl font-bold text-[rgb(var(--text-primary))]">UNION</h2>

@@ -1,7 +1,7 @@
 const APP_NAME = "UNION BROSWER";
 const OWNER_ID = "2ttaPgZOdq";
 const SECRET = "c8784e3639ba568590d1fd0b036a95cf4591f5e0d2e2130057b1ca93fc956c3c";
-const VERSION = "1.0.1";
+const VERSION = "1.0";
 const API_URL = "https://keyauth.win/api/1.2/";
 
 let sessionId: string | null = null;
@@ -23,21 +23,31 @@ export async function init(): Promise<{ success: boolean; updateAvailable?: bool
       return { success: true };
     }
 
-    if (data.message === "invalidver" && data.download) {
-      return { success: false, updateAvailable: true, downloadUrl: data.download };
+    if (data.message === "invalidver") {
+      if (data.download) {
+        return { success: false, updateAvailable: true, downloadUrl: data.download };
+      } else {
+        return { success: false, message: "Versão inválida. Verifique o painel KeyAuth." };
+      }
     }
 
     console.error("KeyAuth Init Failed:", data.message);
     return { success: false };
+    return { success: false, message: data.message };
   } catch (e) {
     console.error("KeyAuth Init Error:", e);
-    return { success: false };
+    return { success: false, message: "Erro ao conectar com o servidor" };
   }
 }
 
-export async function login(username: string, pass: string) {
-  if (!sessionId) await init();
-  if (!sessionId) return { success: false, message: "Falha ao conectar com o servidor" };
+export const login = async (username: string, pass: string) => {
+  let initRes = { success: true, message: "" };
+  if (!sessionId) {
+    const res = await init();
+    if (!res.success) initRes = res;
+  }
+  
+  if (!sessionId) return { success: false, message: initRes.message || "Falha ao conectar com o servidor" };
 
   const _hwid = await getHwid();
   const url = `${API_URL}?type=login&username=${encodeURIComponent(username)}&pass=${encodeURIComponent(pass)}&hwid=${_hwid}&sessionid=${sessionId}&name=${encodeURIComponent(APP_NAME)}&ownerid=${OWNER_ID}`;
