@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --accent: 245 158 11;
+  --accent-light: 251 191 36;
+  --accent-dark: 217 119 6;
+  --bg-deep: 3 5 10;
+  --bg-base: 6 9 19;
+  --bg-surface: 12 15 29;
+  --bg-elevated: 18 24 41;
+  --bg-overlay: 15 23 42;
+  --text-primary: 226 232 240;
+  --text-secondary: 203 213 225;
+  --text-muted: 148 163 184;
+  --text-faint: 100 116 139;
+  --border: 30 41 59;
+  --success: 34 197 94;
+  --warning: 245 158 11;
+  --danger: 239 68 68;
+  --scrollbar-thumb: 51 65 85;
+  --scrollbar-hover: 71 85 105;
+  --bg-deep-hex: #03050a;
+  --bg-base-hex: #060913;
+  --bg-surface-hex: #0c0f1d;
+  --bg-elevated-hex: #121829;
+  --accent-hex: #f59e0b;
+  --text-primary-hex: #e2e8f0;
+  --text-secondary-hex: #cbd5e1;
+  --text-muted-hex: #94a3b8;
+  --text-faint-hex: #64748b;
+  --danger-hex: #ef4444;
+  --success-hex: #22c55e;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+  background: rgb(var(--bg-deep));
+  color: rgb(var(--text-primary));
+  font-family: "Segoe UI", "Inter", system-ui, sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--scrollbar-thumb));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--scrollbar-hover));
+}
+
+::selection {
+  background: rgb(var(--accent) / 0.3);
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+input,
+textarea,
+select {
+  -webkit-app-region: no-drag;
+}
+
+.panel-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.panel-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgb(var(--bg-overlay) / 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

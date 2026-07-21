@@ -1,0 +1,82 @@
+{
+  "app": "UNION",
+  "sidebar": {
+    "workspaces": "Workspaces",
+    "addWorkspace": "Novo Workspace",
+    "collapse": "Recolher",
+    "expand": "Expandir"
+  },
+  "workspace": {
+    "create": "Criar Workspace",
+    "edit": "Editar Workspace",
+    "delete": "Excluir Workspace",
+    "duplicate": "Duplicar Workspace",
+    "name": "Nome",
+    "color": "Cor",
+    "icon": "Ícone",
+    "accounts": "contas",
+    "confirmDelete": "Tem certeza que deseja excluir este workspace? Todas as contas serão removidas."
+  },
+  "account": {
+    "create": "Nova Conta",
+    "edit": "Editar Conta",
+    "delete": "Excluir Conta",
+    "duplicate": "Duplicar Conta",
+    "open": "Abrir",
+    "close": "Fechar",
+    "openAll": "Abrir Todas",
+    "closeAll": "Fechar Todas",
+    "name": "Nome",
+    "url": "URL",
+    "color": "Cor",
+    "confirmDelete": "Cookies, cache e logins desta conta serão removidos permanentemente."
+  },
+  "panel": {
+    "crashed": "Painel travou",
+    "reload": "Recarregar",
+    "muteAll": "Silenciar Todas",
+    "unmuteAll": "Ativar Som"
+  },
+  "toolbar": {
+    "back": "Voltar",
+    "forward": "Avançar",
+    "reload": "Recarregar",
+    "stop": "Parar",
+    "home": "Início",
+    "zoomIn": "Zoom +",
+    "zoomOut": "Zoom -",
+    "mute": "Silenciar",
+    "unmute": "Ativar Som",
+    "screenshot": "Captura de Tela",
+    "newTab": "Nova Aba"
+  },
+  "settings": {
+    "title": "Configurações",
+    "general": "Geral",
+    "appearance": "Aparência",
+    "downloads": "Downloads",
+    "advanced": "Avançado",
+    "launchOnStartup": "Iniciar com o Windows",
+    "autoUpdate": "Buscar atualizações automaticamente",
+    "restoreSession": "Restaurar sessão ao reiniciar",
+    "defaultZoom": "Zoom padrão",
+    "defaultUrl": "URL padrão",
+    "downloadsDir": "Pasta de downloads",
+    "askDownloadDir": "Perguntar onde salvar cada download",
+    "language": "Idioma",
+    "accentColor": "Cor de destaque",
+    "sidebarCollapsed": "Barra lateral recolhida"
+  },
+  "dialog": {
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "save": "Salvar",
+    "delete": "Excluir",
+    "close": "Fechar"
+  },
+  "dashboard": {
+    "empty": "Nenhuma conta neste workspace",
+    "emptyHint": "Crie uma conta para começar a navegar",
+    "selectWorkspace": "Selecione um workspace na barra lateral"
+  }
+}
