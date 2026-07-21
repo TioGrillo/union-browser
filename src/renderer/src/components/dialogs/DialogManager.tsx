@@ -6,8 +6,10 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { ColorPicker } from "@/components/ui/ColorPicker";
+import { HexColorPicker } from "react-colorful";
+import { ThemeCustomizer } from "../settings/ThemeCustomizer";
+import logoUrl from "@/assets/logo.png";
 import { Select } from "@/components/ui/Select";
-import { ThemeCustomizer } from "@/components/settings/ThemeCustomizer";
 import { ProxySettings } from "@/components/settings/ProxySettings";
 import { Globe, Download, RefreshCw, Info, Settings as SettingsIcon, Upload, FolderOpen, Download as DownloadIcon, Palette, Gauge, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -436,10 +438,10 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
           {activeTab === "sobre" && (
               <div className="flex flex-col items-center justify-center h-full text-center text-[rgb(var(--text-faint))] p-6">
                 <div className="w-20 h-20 bg-[rgb(var(--bg-overlay))] rounded-2xl flex items-center justify-center mb-6 overflow-hidden p-2">
-                  <img src="/logo.png" alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
+                  <img src={logoUrl} alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
                 </div>
                 <h2 className="text-xl font-bold text-[rgb(var(--text-primary))]">UNION</h2>
-                <p className="text-sm">Versão 1.0.0</p>
+                <p className="text-sm">Versão 1.0.1</p>
                 <p className="text-xs max-w-xs mt-4">
                   Navegador simples e otimizado para uso de multiplas contas e relacionados. Desenvolvido pela UNION SCRIPTS.
                 </p>

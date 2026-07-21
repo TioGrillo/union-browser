@@ -1,7 +1,7 @@
 const APP_NAME = "UNION BROSWER";
 const OWNER_ID = "2ttaPgZOdq";
 const SECRET = "c8784e3639ba568590d1fd0b036a95cf4591f5e0d2e2130057b1ca93fc956c3c";
-const VERSION = "1.0";
+const VERSION = "1.0.1";
 const API_URL = "https://keyauth.win/api/1.2/";
 
 let sessionId: string | null = null;

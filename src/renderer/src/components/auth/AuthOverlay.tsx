@@ -4,6 +4,7 @@ import { login, register, upgrade, isAuthenticated, init } from "@/lib/keyauth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
+import logoUrl from "@/assets/logo.png";
 
 export function AuthOverlay({ children }: { children: React.ReactNode }) {
   const [auth, setAuth] = useState(isAuthenticated());
@@ -90,7 +91,7 @@ export function AuthOverlay({ children }: { children: React.ReactNode }) {
       <div className="relative w-full max-w-[400px] p-8 bg-[rgb(var(--bg-deep)/0.8)] backdrop-blur-xl border border-[rgb(var(--border))] rounded-2xl shadow-2xl">
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 bg-[rgb(var(--bg-overlay))] border border-[rgb(var(--border))] rounded-2xl flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(var(--accent),0.2)] overflow-hidden p-2">
-            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
+            <img src={logoUrl} alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
           </div>
           <h1 className="text-2xl font-bold text-[rgb(var(--text-primary))]">UNION BROWSER</h1>
           <p className="text-sm text-[rgb(var(--text-faint))] mt-1">
