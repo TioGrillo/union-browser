@@ -28,6 +28,7 @@ const ALLOWED_INVOKE = [
   "updates:check",
   "system:metrics",
   "system:hwid",
+  "system:app-version",
   "system:keyauth-request",
   "system:choose-directory",
   "system:open-file",

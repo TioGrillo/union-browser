@@ -826,6 +826,8 @@ function registerIpcHandlers(): void {
     return crypto.createHash("sha256").update(data).digest("hex");
   });
 
+  ipcMain.handle("system:app-version", () => app.getVersion());
+
   ipcMain.handle("system:keyauth-request", async (_, url: string) => {
     try {
       const res = await net.fetch(url, {

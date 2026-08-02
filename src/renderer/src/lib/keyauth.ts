@@ -1,11 +1,11 @@
 const APP_NAME = "UNION BROSWER";
 const OWNER_ID = "2ttaPgZOdq";
 const SECRET = "c8784e3639ba568590d1fd0b036a95cf4591f5e0d2e2130057b1ca93fc956c3c";
-const VERSION = "1.0";
 const API_URL = "https://keyauth.win/api/1.2/";
 
 let sessionId: string | null = null;
 let hwid: string | null = null;
+let appVersion: string | null = null;
 
 async function getHwid() {
   if (!hwid) {
@@ -14,9 +14,21 @@ async function getHwid() {
   return hwid;
 }
 
-export async function init(): Promise<{ success: boolean; updateAvailable?: boolean; downloadUrl?: string }> {
+async function getVersion() {
+  if (!appVersion) {
+    try {
+      appVersion = await window.electronAPI.invoke<string>("system:app-version");
+    } catch {
+      appVersion = "1.0.5";
+    }
+  }
+  return appVersion;
+}
+
+export async function init(): Promise<{ success: boolean; updateAvailable?: boolean; downloadUrl?: string; message?: string }> {
   try {
-    const url = `${API_URL}?type=init&ver=${VERSION}&name=${encodeURIComponent(APP_NAME)}&ownerid=${OWNER_ID}`;
+    const version = await getVersion();
+    const url = `${API_URL}?type=init&ver=${version}&name=${encodeURIComponent(APP_NAME)}&ownerid=${OWNER_ID}`;
     const data = await window.electronAPI.invoke<any>("system:keyauth-request", url);
     if (data.success) {
       sessionId = data.sessionid;
