@@ -960,8 +960,8 @@ app.commandLine.appendSwitch("disable-software-rasterizer");
 app.commandLine.appendSwitch("disable-renderer-backgrounding", "false");
 app.commandLine.appendSwitch("enable-background-thread-pool", "false");
 app.commandLine.appendSwitch("enable-quic");
-// Limite agressivo de memória V8 (reduz pico de memória em webviews)
-app.commandLine.appendSwitch("js-flags", "--max-old-space-size=256 --lite-mode");
+// Limite agressivo de memória V8 (reduz pico de memória em webviews) mas preserva WebAssembly
+app.commandLine.appendSwitch("js-flags", "--max-old-space-size=512");
 
 // ── App Lifecycle ────────────────────────────
 app.whenReady().then(() => {

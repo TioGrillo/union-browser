@@ -12,14 +12,14 @@ repo_name = "union-browser"
 username = "TioGrillo"
 repo_url = f"https://api.github.com/repos/{username}/{repo_name}"
 
-release_name = "UNION BROWSER V1.0.6"
-tag_name = "v1.0.6"
+release_name = "UNION BROWSER V1.0.7"
+tag_name = "v1.0.7"
 
 print(f"Criando release {tag_name}...")
 r_rel = requests.post(f"{repo_url}/releases", headers=HEADERS, json={
     "tag_name": tag_name,
     "name": release_name,
-    "body": "Nova compilação (Versão 1.0.6) - Correção de loop infinito de atualização devido a versão estática e adição de IPC getVersion.",
+    "body": "Nova compilação (Versão 1.0.7) - Correção de crash de WebAssembly (WASM) em jogos devido a flags agressivas de lite-mode na V8.",
     "draft": False,
     "prerelease": False
 })
@@ -33,8 +33,8 @@ r_rel.raise_for_status()
 release_data = r_rel.json()
 upload_url = release_data["upload_url"].split("{")[0]
 
-file_path = r"C:\Users\Damiao\Documents\IdleBrowser\release\UNION BROWSER 1.0.6.exe"
-file_name = "UNION_BROWSER_1.0.6.exe"
+file_path = r"C:\Users\Damiao\Documents\IdleBrowser\release\UNION BROWSER 1.0.7.exe"
+file_name = "UNION_BROWSER_1.0.7.exe"
 print(f"Fazendo upload de {file_name}... Isso pode demorar um pouco dependendo do tamanho.")
 
 upload_headers = HEADERS.copy()
