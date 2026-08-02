@@ -710,14 +710,15 @@ function registerIpcHandlers(): void {
 
   // ── Updates via KeyAuth ─────────────────────────────────
   ipcMain.on("updates:keyauth-start", async (e, url: string) => {
+    let dest: fs.WriteStream | null = null;
     try {
       sendToRenderer("updates:keyauth-progress", "Preparando download...", 0);
       const res = await net.fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       
       const contentLength = Number(res.headers.get("content-length")) || 0;
-      const destPath = path.join(app.getPath("temp"), "Update-UnionBrowser.exe");
-      const dest = fs.createWriteStream(destPath);
+      const destPath = path.join(app.getPath("temp"), `Update-UnionBrowser-${Date.now()}.exe`);
+      dest = fs.createWriteStream(destPath);
       
       let downloaded = 0;
       let lastEmit = Date.now();
@@ -757,6 +758,9 @@ function registerIpcHandlers(): void {
       }, 1000);
       
     } catch (err: any) {
+      if (dest) {
+        dest.close();
+      }
       sendToRenderer("updates:keyauth-progress", "Erro no download: " + err.message, 0);
     }
   });

@@ -1,6 +1,6 @@
 {
   "name": "union-browser",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Navegador desktop multi-sessão com workspaces",
   "main": "dist/main/bootstrap.js",
   "author": {
