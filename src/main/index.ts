@@ -13,7 +13,6 @@ import {
   webContents,
   shell,
 } from "electron";
-import { autoUpdater } from "electron-updater";
 import path from "node:path";
 import fs from "node:fs";
 import Store from "electron-store";
@@ -992,13 +991,6 @@ app.whenReady().then(() => {
   applyCacheLimits(perfSettings.maxCacheSizeMB || 256);
   if (perfSettings.autoPurgeCache) {
     purgeAllPanelCaches();
-  }
-
-  // Verifica atualizações automaticamente no GitHub Release
-  if (app.isPackaged) {
-    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-      console.error("Erro ao verificar atualizações:", err);
-    });
   }
 
   app.on("activate", () => {
