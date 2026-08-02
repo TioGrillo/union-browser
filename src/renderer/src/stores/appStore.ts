@@ -100,7 +100,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   createAccount: async (data) => {
-    const account = await invoke<Account>("accounts:create", data);
+    const state = get();
+    let accountData = { ...data };
+    
+    if (state.settings.autoFingerprint && !accountData.userAgent) {
+      const agents = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
+      ];
+      accountData.userAgent = agents[Math.floor(Math.random() * agents.length)];
+    }
+
+    const account = await invoke<Account>("accounts:create", accountData);
     set((s) => ({ accounts: [...s.accounts, account] }));
     return account;
   },

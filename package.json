@@ -1,6 +1,6 @@
 {
   "name": "union-browser",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Navegador desktop multi-sessão com workspaces",
   "main": "dist/main/bootstrap.js",
   "author": {
@@ -22,10 +22,11 @@
     "package:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
+    "bytenode": "^1.5.0",
     "electron-store": "^8.2.0",
     "electron-updater": "^6.6.2",
     "extract-zip": "^2.0.1",
-    "bytenode": "^1.5.0"
+    "react-colorful": "^5.8.0"
   },
   "devDependencies": {
     "@types/electron": "^1.4.38",

@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
 import { Plus, Globe, GripVertical, VolumeX, Volume2, RotateCw, Maximize2, Minimize2, X } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
 import { useDialogStore } from "@/stores/dialogStore";
@@ -8,6 +7,9 @@ import { useMirrorStore, MIRROR_CAPTURE_SCRIPT, buildReplayScript } from "@/stor
 import { applyPerformanceToWebview, buildLowPowerScript } from "@/lib/performance";
 import { send } from "@/lib/ipc";
 import { cn } from "@/lib/utils";
+import { ContextMenu } from "./Sidebar";
+import { motion, AnimatePresence } from "framer-motion";
+import { Fingerprint, Navigation, Star } from "lucide-react";
 
 function computeGrid(count: number): { cols: number; rows: number } {
   if (count <= 0) return { cols: 0, rows: 0 };
@@ -27,12 +29,14 @@ function PanelCell({
   isMaximized,
   onToggleMaximize,
   onRemove,
+  onContextMenu,
 }: {
   account: { id: string; name: string; url: string; color: string };
   style: React.CSSProperties;
   isMaximized?: boolean;
   onToggleMaximize?: () => void;
   onRemove?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   const mountPanel = useAppStore((s) => s.mountPanel);
   const unmountPanel = useAppStore((s) => s.unmountPanel);
@@ -52,17 +56,28 @@ function PanelCell({
   const isMirrored = masterAccountId !== null && !isMaster && isSelected;
   
   const webviewRef = useRef<any>(null);
+  // Track mount state separately to avoid re-calling mountPanel on React remounts
+  const hasMounted = useRef(false);
   const [isReady, setIsReady] = useState(false);
 
   const state = panelStates[account.id];
 
   useEffect(() => {
+    // If already in panelStates (e.g. after a remount), mark as ready without IPC call
+    if (panelStates[account.id]) {
+      setIsReady(true);
+      hasMounted.current = true;
+      return;
+    }
+    if (hasMounted.current) return;
+    hasMounted.current = true;
     let cancelled = false;
     mountPanel(account.id, account.url).then(() => {
       if (!cancelled) setIsReady(true);
     });
     return () => { cancelled = true; };
-  }, [account.id, account.url, mountPanel]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account.id]);
 
   useEffect(() => {
     const wv = webviewRef.current;
@@ -71,6 +86,12 @@ function PanelCell({
     const onStartLoading = () => updatePanelState(account.id, { isLoading: true });
     const onStopLoading = () => updatePanelState(account.id, { isLoading: false, title: wv.getTitle() });
     const onPageTitleUpdated = (e: any) => updatePanelState(account.id, { title: e.title });
+    const onDidNavigate = (e: any) => {
+      const { settings, updateSettings } = useAppStore.getState();
+      const history = settings.history || [];
+      const newHistory = [{ url: e.url, title: wv.getTitle() || e.url, timestamp: Date.now(), accountId: account.id }, ...history].slice(0, 500); // keep last 500
+      updateSettings({ history: newHistory });
+    };
     const onDomReady = () => {
       try {
         const wcId = wv.getWebContentsId();
@@ -81,12 +102,14 @@ function PanelCell({
     wv.addEventListener("did-start-loading", onStartLoading);
     wv.addEventListener("did-stop-loading", onStopLoading);
     wv.addEventListener("page-title-updated", onPageTitleUpdated);
+    wv.addEventListener("did-navigate", onDidNavigate);
     wv.addEventListener("dom-ready", onDomReady);
     
     return () => {
       wv.removeEventListener("did-start-loading", onStartLoading);
       wv.removeEventListener("did-stop-loading", onStopLoading);
       wv.removeEventListener("page-title-updated", onPageTitleUpdated);
+      wv.removeEventListener("did-navigate", onDidNavigate);
       wv.removeEventListener("dom-ready", onDomReady);
     };
   }, [isReady, account.id, updatePanelState]);
@@ -110,14 +133,14 @@ function PanelCell({
         updatePanelState(account.id, { zoom: Math.round(factor * 100) });
       }
     };
-    
+
     window.addEventListener(`panel:reload:${account.id}`, handleReload);
     window.addEventListener(`panel:back:${account.id}`, handleBack);
     window.addEventListener(`panel:forward:${account.id}`, handleForward);
     window.addEventListener(`panel:navigate:${account.id}`, handleNavigate);
     window.addEventListener(`panel:mute:${account.id}`, handleMute);
     window.addEventListener(`panel:zoom:${account.id}`, handleZoom);
-    
+
     return () => {
       window.removeEventListener(`panel:reload:${account.id}`, handleReload);
       window.removeEventListener(`panel:back:${account.id}`, handleBack);
@@ -128,7 +151,7 @@ function PanelCell({
     };
   }, [account.id, updatePanelState]);
 
-  // Apply performance settings to webview
+  // Apply performance settings and zoom injection after webview is ready
   useEffect(() => {
     const wv = webviewRef.current;
     if (!wv || !isReady) return;
@@ -145,7 +168,53 @@ function PanelCell({
         }, 300);
       });
     }
-  }, [isReady, settings.fpsLimit, settings.lowPowerMode, settings.backgroundThrottling, settings.smoothScrolling]);
+
+    // Zoom via CTRL+Scroll: inject listener into page
+    const injectZoomScript = () => {
+      try {
+        wv.executeJavaScript(`
+          if (!window.__zoomListenerInjected) {
+            window.__zoomListenerInjected = true;
+            window.addEventListener('wheel', function(e) {
+              if (e.ctrlKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log(e.deltaY > 0 ? '__ZOOM_OUT__' : '__ZOOM_IN__');
+              }
+            }, { passive: false, capture: true });
+          }
+        `).catch(() => {});
+      } catch {}
+    };
+
+    // Zoom: listen for console messages from injected script
+    const onConsoleMessage = (e: any) => {
+      const store = useAppStore.getState();
+      if (e.message === '__ZOOM_IN__') {
+        const currentZoom = (store.panelStates[account.id]?.zoom || 100) / 100;
+        const factor = Math.min(5, currentZoom + 0.1);
+        wv.setZoomFactor(factor);
+        updatePanelState(account.id, { zoom: Math.round(factor * 100) });
+      } else if (e.message === '__ZOOM_OUT__') {
+        const currentZoom = (store.panelStates[account.id]?.zoom || 100) / 100;
+        const factor = Math.max(0.25, currentZoom - 0.1);
+        wv.setZoomFactor(factor);
+        updatePanelState(account.id, { zoom: Math.round(factor * 100) });
+      }
+    };
+
+    wv.addEventListener('console-message', onConsoleMessage);
+    wv.addEventListener('dom-ready', injectZoomScript);
+    wv.addEventListener('did-navigate', () => setTimeout(injectZoomScript, 300));
+    // NOTE: do NOT call injectZoomScript() immediately here — the webview may not
+    // have emitted dom-ready yet, and executeJavaScript would throw.
+
+    return () => {
+      wv.removeEventListener('console-message', onConsoleMessage);
+    };
+
+
+  }, [isReady, account.id, updatePanelState, settings.fpsLimit, settings.lowPowerMode, settings.backgroundThrottling, settings.smoothScrolling]);
 
   // Mirror: master webview captures events, slaves receive broadcasts
   useEffect(() => {
@@ -231,8 +300,22 @@ function PanelCell({
     window.dispatchEvent(new CustomEvent(`panel:reload:${account.id}`));
   };
 
-  const handleFocus = () => {
+  const handleFocus = (e?: React.MouseEvent) => {
+    console.log('[PanelCell] handleFocus called for', account.id, 'ctrlKey:', e?.ctrlKey);
     setActiveAccountId(account.id);
+    const store = useAppStore.getState();
+    const currentSelected = store.selectedAccountIds;
+
+    if (e && e.ctrlKey) {
+      if (currentSelected.includes(account.id)) {
+        store.setSelectedAccountIds(currentSelected.filter(id => id !== account.id));
+      } else {
+        store.setSelectedAccountIds([...currentSelected, account.id]);
+      }
+    } else {
+      store.setSelectedAccountIds([account.id]);
+    }
+    console.log('[PanelCell] selectedAccountIds after set:', useAppStore.getState().selectedAccountIds);
   };
 
   const handleClose = (e: React.MouseEvent) => {
@@ -244,13 +327,8 @@ function PanelCell({
   const shortUrl = account.url.replace(/^https?:\/\/(www\.)?/, "");
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
+    <div
       style={style}
-      onClick={handleFocus}
       className={cn(
         "relative bg-[rgb(var(--bg-base))] rounded-t-xl overflow-hidden border flex flex-col",
         isSelected
@@ -272,12 +350,17 @@ function PanelCell({
         </div>
       )}
       {/* Interactive solid header */}
+      {/* Header: click to select, drag grip to reorder */}
       <div
-        className="h-9 bg-[rgb(var(--bg-surface))] border-b border-[rgb(var(--border)/0.6)] px-3 flex items-center justify-between shrink-0 select-none no-drag cursor-grab active:cursor-grabbing"
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData("text/plain", account.id);
-          e.dataTransfer.effectAllowed = "move";
+        className="h-9 bg-[rgb(var(--bg-surface))] border-b border-[rgb(var(--border)/0.6)] px-3 flex items-center justify-between shrink-0 select-none"
+        onMouseDown={(e) => {
+          if (e.button === 0) handleFocus(e);
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleFocus(e);
+          if (onContextMenu) onContextMenu(e);
         }}
         onDragOver={(e) => {
           e.preventDefault();
@@ -291,8 +374,19 @@ function PanelCell({
           }
         }}
       >
-        <div className="flex items-center gap-2 min-w-0 pointer-events-none">
-          <GripVertical size={13} className="text-[rgb(var(--text-faint)/0.5)] mr-0.5" />
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Only the grip icon is draggable to avoid blocking mousedown on the whole header */}
+          <span
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData("text/plain", account.id);
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            className="cursor-grab active:cursor-grabbing shrink-0"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <GripVertical size={13} className="text-[rgb(var(--text-faint)/0.5)] mr-0.5" />
+          </span>
           <div className="w-2 h-2 rounded-full shrink-0" style={{ background: account.color }} />
           <span className="text-xs font-bold text-[rgb(var(--text-primary))] truncate">{account.name}</span>
           <span className="text-[10px] text-[rgb(var(--text-faint))] truncate max-w-[150px]">{shortUrl}</span>
@@ -301,18 +395,21 @@ function PanelCell({
         {/* Right side controls */}
         <div className="flex items-center gap-1">
           <button
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={handleMute}
             className="p-1 rounded hover:bg-[rgb(var(--border))] text-[rgb(var(--text-faint))] hover:text-[rgb(var(--text-primary))] transition-colors"
           >
             {state?.isMuted ? <VolumeX size={10} className="text-red-400" /> : <Volume2 size={10} />}
           </button>
           <button
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={handleReload}
             className="p-1 rounded hover:bg-[rgb(var(--border))] text-[rgb(var(--text-faint))] hover:text-[rgb(var(--text-primary))] transition-colors"
           >
             <RotateCw size={10} />
           </button>
           <button
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               if (onToggleMaximize) onToggleMaximize();
@@ -323,6 +420,7 @@ function PanelCell({
             {isMaximized ? <Minimize2 size={10} /> : <Maximize2 size={10} />}
           </button>
           <button
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={handleClose}
             className="p-1 rounded hover:bg-red-500/10 text-[rgb(var(--text-faint))] hover:text-red-400 transition-colors"
           >
@@ -331,17 +429,16 @@ function PanelCell({
         </div>
       </div>
 
-      {/* Webview container */}
+      {/* Webview container — always in DOM to prevent process kill */}
       <div className="flex-1 relative bg-[rgb(var(--bg-deep))] overflow-hidden">
-        {isReady && (
-          <webview
-            ref={webviewRef}
-            src={account.url}
-            partition={`persist:panel-${account.id}`}
-            className="w-full h-full"
-            allowpopups="true"
-          />
-        )}
+        <webview
+          ref={webviewRef}
+          src={account.url}
+          partition={`persist:panel-${account.id}`}
+          className="w-full h-full"
+          allowpopups={true}
+          style={{ visibility: isReady ? "visible" : "hidden" }}
+        />
         {(!state || state?.isLoading || !isReady) && (
           <div className="absolute inset-0 flex items-center justify-center bg-[rgb(var(--bg-deep))] z-10">
             <div className="flex flex-col items-center gap-2">
@@ -353,7 +450,7 @@ function PanelCell({
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -367,6 +464,9 @@ function ResizeHandle({
   onReset?: () => void;
 }) {
   const handleRef = useRef<HTMLDivElement>(null);
+  // Keep a stable ref to onDrag so the effect never needs to re-run
+  const onDragRef = useRef(onDrag);
+  useEffect(() => { onDragRef.current = onDrag; }, [onDrag]);
 
   useEffect(() => {
     const el = handleRef.current;
@@ -380,8 +480,10 @@ function ResizeHandle({
 
       const onMouseMove = (e: MouseEvent) => {
         const current = direction === "horizontal" ? e.clientX : e.clientY;
-        onDrag(current - lastPos);
+        const delta = current - lastPos;
         lastPos = current;
+        // Call through ref so we always use the latest callback
+        onDragRef.current(delta);
       };
 
       const onMouseUp = () => {
@@ -398,8 +500,9 @@ function ResizeHandle({
     };
 
     el.addEventListener("mousedown", onMouseDown);
+    // Only direction in deps — onDrag is handled via ref above
     return () => el.removeEventListener("mousedown", onMouseDown);
-  }, [direction, onDrag]);
+  }, [direction]);
 
   const isHorizontal = direction === "horizontal";
 
@@ -455,8 +558,14 @@ function EmptyDashboard() {
 
 export function Dashboard() {
   const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
+  const workspaces = useAppStore((s) => s.workspaces);
   const accounts = useAppStore((s) => s.accounts);
   const unmountPanel = useAppStore((s) => s.unmountPanel);
+  const updateAccount = useAppStore((s) => s.updateAccount);
+  const setIsOverlayOpen = useAppStore((s) => s.setIsOverlayOpen);
+  const openDialog = useDialogStore((s) => s.open);
+  
+  const [panelContextMenu, setPanelContextMenu] = useState<{ x: number; y: number; accountId: string } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const panelStates = useAppStore((s) => s.panelStates);
   const gridLayout = useAppStore((s) => s.gridLayout);
@@ -465,33 +574,33 @@ export function Dashboard() {
   const workspaceAccounts = accounts.filter((a) => a.workspaceId === activeWorkspaceId);
   const activeAccountsInWorkspace = workspaceAccounts.filter((a) => panelStates[a.id]);
 
-  const displayedAccounts = maximizedId && activeAccountsInWorkspace.some(a => a.id === maximizedId)
-    ? activeAccountsInWorkspace.filter((a) => a.id === maximizedId)
-    : gridLayout === "single" && activeAccountsInWorkspace.length > 0
-      ? activeAccountsInWorkspace.slice(0, 1)
-      : activeAccountsInWorkspace;
+  const isMaximizedMode = !!(maximizedId && activeAccountsInWorkspace.some(a => a.id === maximizedId));
 
-  const [colSizes, setColSizes] = useState<number[]>([]);
-  const [rowSizes, setRowSizes] = useState<number[]>([]);
-
+  // ALWAYS compute grid dimensions from the total active accounts count,
+  // regardless of whether a panel is maximized. This prevents the grid from
+  // collapsing to 1x1 when maximizing, which would cause a layout recalc
+  // on restore and force webviews to reload.
+  const totalCount = activeAccountsInWorkspace.length;
   let cols = 1;
   let rows = 1;
 
-  if (gridLayout === "single" || displayedAccounts.length <= 1) {
+  if (gridLayout === "single" || totalCount <= 1) {
     cols = 1;
     rows = 1;
   } else if (gridLayout === "columns") {
-    cols = displayedAccounts.length;
+    cols = totalCount;
     rows = 1;
   } else if (gridLayout === "rows") {
     cols = 1;
-    rows = displayedAccounts.length;
+    rows = totalCount;
   } else {
-    // "auto" or "free"
-    const computed = computeGrid(displayedAccounts.length);
+    const computed = computeGrid(totalCount);
     cols = computed.cols;
     rows = computed.rows;
   }
+
+  const [colSizes, setColSizes] = useState<number[]>([]);
+  const [rowSizes, setRowSizes] = useState<number[]>([]);
 
   const resetSizes = useCallback(() => {
     setColSizes(Array(cols).fill(100 / cols));
@@ -516,8 +625,17 @@ export function Dashboard() {
       const target = colIndex + 1 < next.length ? colIndex + 1 : colIndex - 1;
       if (target < 0 || target >= next.length) return prev;
 
-      const newCol = Math.max(minSize, next[colIndex] + deltaPercent);
-      const newTarget = Math.max(minSize, next[target] - deltaPercent);
+      const sum = next[colIndex] + next[target];
+      let newCol = next[colIndex] + (target > colIndex ? deltaPercent : -deltaPercent);
+      let newTarget = next[target] - (target > colIndex ? deltaPercent : -deltaPercent);
+
+      if (newCol < minSize) {
+        newCol = minSize;
+        newTarget = sum - minSize;
+      } else if (newTarget < minSize) {
+        newTarget = minSize;
+        newCol = sum - minSize;
+      }
 
       next[colIndex] = newCol;
       next[target] = newTarget;
@@ -539,8 +657,17 @@ export function Dashboard() {
       const target = rowIndex + 1 < next.length ? rowIndex + 1 : rowIndex - 1;
       if (target < 0 || target >= next.length) return prev;
 
-      const newRow = Math.max(minSize, next[rowIndex] + deltaPercent);
-      const newTarget = Math.max(minSize, next[target] - deltaPercent);
+      const sum = next[rowIndex] + next[target];
+      let newRow = next[rowIndex] + (target > rowIndex ? deltaPercent : -deltaPercent);
+      let newTarget = next[target] - (target > rowIndex ? deltaPercent : -deltaPercent);
+
+      if (newRow < minSize) {
+        newRow = minSize;
+        newTarget = sum - minSize;
+      } else if (newTarget < minSize) {
+        newTarget = minSize;
+        newRow = sum - minSize;
+      }
 
       next[rowIndex] = newRow;
       next[target] = newTarget;
@@ -566,6 +693,7 @@ export function Dashboard() {
 
   return (
     <div ref={gridRef} className="flex-1 p-2 overflow-hidden bg-[rgb(var(--bg-base))]">
+      {/* Grid container — always keeps the full layout so webviews are never destroyed */}
       <div
         className="w-full h-full relative"
         style={{
@@ -575,19 +703,35 @@ export function Dashboard() {
           gap: 0,
         }}
       >
-        {displayedAccounts.map((account, index) => {
+        {activeAccountsInWorkspace.map((account, index) => {
           const col = (index % cols) + 1;
           const row = Math.floor(index / cols) + 1;
           const isLastCol = col === cols;
           const isLastRow = row === rows;
 
+          const isThisMaximized = isMaximizedMode && account.id === maximizedId;
+          // In single-panel mode (not maximized), only show the first account
+          const isHiddenBySingleMode = !isMaximizedMode && gridLayout === "single" && index !== 0;
+          // In maximized mode, hide non-maximized panels using visibility:hidden
+          // (NOT display:none — that would kill the Electron webview process)
+          const isHiddenByMaximize = isMaximizedMode && !isThisMaximized;
+
           return (
             <div
               key={account.id}
               className="relative p-0.5"
-              style={{
+              style={isThisMaximized ? {
+                // Maximized panel: overlay the entire grid container absolutely
+                position: "absolute",
+                inset: 0,
+                zIndex: 20,
+                padding: "2px",
+              } : {
                 gridColumn: `${col} / span 1`,
                 gridRow: `${row} / span 1`,
+                // Use visibility:hidden so webview processes stay alive
+                visibility: (isHiddenBySingleMode || isHiddenByMaximize) ? "hidden" : "visible",
+                pointerEvents: (isHiddenBySingleMode || isHiddenByMaximize) ? "none" : "auto",
               }}
             >
               <PanelCell
@@ -599,17 +743,20 @@ export function Dashboard() {
                 isMaximized={maximizedId === account.id}
                 onToggleMaximize={() => setMaximizedId(maximizedId === account.id ? null : account.id)}
                 onRemove={() => unmountPanel(account.id)}
+                onContextMenu={(e) => {
+                  setPanelContextMenu({ x: e.clientX, y: e.clientY, accountId: account.id });
+                  setIsOverlayOpen(true);
+                }}
               />
-              {/* Vertical resize handle */}
-              {!isLastCol && (
+              {/* Resize handles — only when not maximized and this panel is visible */}
+              {!isMaximizedMode && !isHiddenBySingleMode && !isLastCol && (
                 <ResizeHandle
                   direction="horizontal"
                   onDrag={(d) => handleColDrag(col - 1, d)}
                   onReset={resetSizes}
                 />
               )}
-              {/* Horizontal resize handle */}
-              {!isLastRow && (
+              {!isMaximizedMode && !isHiddenBySingleMode && !isLastRow && (
                 <ResizeHandle
                   direction="vertical"
                   onDrag={(d) => handleRowDrag(row - 1, d)}
@@ -620,6 +767,59 @@ export function Dashboard() {
           );
         })}
       </div>
+      
+      <AnimatePresence>
+        {panelContextMenu && (
+          <ContextMenu
+            x={panelContextMenu.x}
+            y={panelContextMenu.y}
+            onClose={() => {
+              setPanelContextMenu(null);
+              setIsOverlayOpen(false);
+            }}
+            items={[
+              {
+                label: "Redirecionar URL",
+                icon: <Navigation size={12} />,
+                onClick: () => {
+                  const store = useAppStore.getState();
+                  const targetIds = store.selectedAccountIds.includes(panelContextMenu.accountId)
+                    ? store.selectedAccountIds
+                    : [panelContextMenu.accountId];
+                  openDialog({ type: "navigate-panel", accountIds: targetIds });
+                },
+              },
+              {
+                label: "Randomizar Fingerprint",
+                icon: <Fingerprint size={12} />,
+                onClick: () => {
+                  const agents = [
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
+                  ];
+                  const store = useAppStore.getState();
+                  const targetIds = store.selectedAccountIds.includes(panelContextMenu.accountId)
+                    ? store.selectedAccountIds
+                    : [panelContextMenu.accountId];
+                  
+                  targetIds.forEach(id => {
+                    const randomUA = agents[Math.floor(Math.random() * agents.length)];
+                    updateAccount(id, { userAgent: randomUA });
+                    const wv = document.querySelector(`webview[partition="persist:panel-${id}"]`) as any;
+                    if (wv) {
+                      wv.useragent = randomUA;
+                      wv.reload();
+                    }
+                  });
+                },
+              }
+            ]}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+

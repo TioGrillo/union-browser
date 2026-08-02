@@ -18,6 +18,9 @@ import { invoke } from "@/lib/ipc";
 import { PerformanceSettings } from "@/components/settings/PerformanceSettings";
 import { ExtensionsManager } from "@/components/settings/ExtensionsManager";
 
+import { ProxyAssignModal } from "./ProxyAssignModal";
+import { NavigateModal } from "./NavigateModal";
+
 function WorkspaceDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const dialog = useDialogStore((s) => s.dialog);
@@ -593,6 +596,10 @@ export function DialogManager() {
       return <AccountDialog onClose={close} />;
     case "delete-account":
       return <DeleteAccountDialog onClose={close} />;
+    case "assign-proxy":
+      return <ProxyAssignModal onClose={close} accountIds={dialog.accountIds} />;
+    case "navigate-panel":
+      return <NavigateModal onClose={close} accountIds={dialog.accountIds} />;
     case "settings":
       return <SettingsDialog onClose={close} />;
     case "keyboard-shortcuts":

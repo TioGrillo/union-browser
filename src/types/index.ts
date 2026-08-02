@@ -150,6 +150,10 @@ export interface Settings {
   maxCacheSizeMB: number;
   autoPurgeCache: boolean;
   extensions: Extension[];
+  proxies: string[];
+  favoriteUrls: { url: string; title: string }[];
+  history: { url: string; title: string; timestamp: number; accountId: string }[];
+  autoFingerprint?: boolean;
 }
 
 export interface Extension {
@@ -297,6 +301,10 @@ export const DEFAULT_SETTINGS: Settings = {
   maxCacheSizeMB: 256,
   autoPurgeCache: false,
   extensions: [],
+  proxies: [],
+  favoriteUrls: [],
+  history: [],
+  autoFingerprint: false,
   shortcuts: {
     "select-panel-1": "Ctrl+1",
     "select-panel-2": "Ctrl+2",

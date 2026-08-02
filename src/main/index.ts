@@ -450,7 +450,6 @@ function registerIpcHandlers(): void {
 
     const partition = "persist:panel-" + accountId;
     const ses = session.fromPartition(partition, { cache: true });
-
     try {
       if (proxy) {
         await ses.setProxy({ mode: "fixed_servers", proxyRules: proxy });
@@ -487,9 +486,19 @@ function registerIpcHandlers(): void {
     return true;
   });
 
-
-
-
+  ipcMain.handle("session:clear-data", async (_, accountId: string) => {
+    const partition = "persist:panel-" + accountId;
+    try {
+      const ses = session.fromPartition(partition, { cache: true });
+      await ses.clearStorageData();
+      await ses.clearCache();
+      await ses.clearAuthCache();
+      return true;
+    } catch (e) {
+      console.error(`Failed to clear session for ${accountId}:`, e);
+      return false;
+    }
+  });
 
   // ── Settings ────────────────────────────────
   ipcMain.handle("settings:get", () => {
@@ -936,6 +945,17 @@ function registerIpcHandlers(): void {
     return true;
   });
 }
+
+// ── Otimizações de Consumo (Modo Ultra Leve) ───────────
+app.commandLine.appendSwitch("disable-features", "Translate,OptimizationHints,MediaRouter");
+app.commandLine.appendSwitch("enable-zero-copy"); // Reduce RAM copy overhead
+app.commandLine.appendSwitch("enable-gpu-rasterization"); // Offload to GPU
+app.commandLine.appendSwitch("disable-software-rasterizer");
+app.commandLine.appendSwitch("disable-renderer-backgrounding", "false");
+app.commandLine.appendSwitch("enable-background-thread-pool", "false");
+app.commandLine.appendSwitch("enable-quic");
+// Limite agressivo de memória V8 (reduz pico de memória em webviews)
+app.commandLine.appendSwitch("js-flags", "--max-old-space-size=256 --lite-mode");
 
 // ── App Lifecycle ────────────────────────────
 app.whenReady().then(() => {

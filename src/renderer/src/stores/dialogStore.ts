@@ -8,6 +8,8 @@ export type DialogType =
   | { type: "create-account"; workspaceId: string }
   | { type: "edit-account"; accountId: string }
   | { type: "delete-account"; accountIds: string[] }
+  | { type: "assign-proxy"; accountIds: string[] }
+  | { type: "navigate-panel"; accountIds: string[] }
   | { type: "settings" }
   | { type: "keyboard-shortcuts" };
 

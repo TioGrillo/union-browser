@@ -34,8 +34,10 @@ export function ProxySettings() {
   const accounts = useAppStore((s) => s.accounts);
   const updateAccount = useAppStore((s) => s.updateAccount);
   const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
+  const settings = useAppStore((s) => s.settings);
+  const updateSettings = useAppStore((s) => s.updateSettings);
+  const proxies = settings.proxies || [];
 
-  const [proxies, setProxies] = useState<string[]>([]);
   const [manualInput, setManualInput] = useState("");
   const [assignTarget, setAssignTarget] = useState<"account" | "workspace">("account");
   const [selectedAccountId, setSelectedAccountId] = useState("");
@@ -57,7 +59,7 @@ export function ProxySettings() {
     const invalid = parsed.filter((p) => !p.parsed);
 
     const newProxies = valid.map((p) => p.raw);
-    setProxies((prev) => [...prev, ...newProxies]);
+    updateSettings({ proxies: [...proxies, ...newProxies] });
 
     if (invalid.length > 0) {
       showFeedback("error", `${newProxies.length} válidas, ${invalid.length} inválidas ignoradas`);
@@ -73,17 +75,17 @@ export function ProxySettings() {
       showFeedback("error", "Formato inválido. Use: host:port ou protocol://user:pass@host:port");
       return;
     }
-    setProxies((prev) => [...prev, manualInput.trim()]);
+    updateSettings({ proxies: [...proxies, manualInput.trim()] });
     setManualInput("");
     showFeedback("success", "Proxy adicionada");
   };
 
   const handleRemoveProxy = (index: number) => {
-    setProxies((prev) => prev.filter((_, i) => i !== index));
+    updateSettings({ proxies: proxies.filter((_, i) => i !== index) });
   };
 
   const handleClearAll = () => {
-    setProxies([]);
+    updateSettings({ proxies: [] });
     showFeedback("success", "Lista limpa");
   };
 
@@ -93,7 +95,15 @@ export function ProxySettings() {
       showFeedback("error", "Proxy inválida");
       return;
     }
-    const electronProxy = `${parsed.protocol}://${parsed.host}:${parsed.port}`;
+
+    // Build full proxy URL including auth — Electron accepts user:pass@host:port in proxyRules
+    let electronProxy = `${parsed.protocol}://`;
+    if (parsed.username) {
+      electronProxy += encodeURIComponent(parsed.username);
+      if (parsed.password) electronProxy += `:${encodeURIComponent(parsed.password)}`;
+      electronProxy += "@";
+    }
+    electronProxy += `${parsed.host}:${parsed.port}`;
 
     if (assignTarget === "workspace" && activeWorkspaceId) {
       const wsAccounts = accounts.filter((a) => a.workspaceId === activeWorkspaceId);
@@ -110,6 +120,7 @@ export function ProxySettings() {
       showFeedback("error", "Selecione um alvo");
     }
   };
+
 
   const handleRemoveProxyFromAccount = async (accountId: string) => {
     await invoke("panels:set-proxy", accountId, null);
@@ -135,6 +146,29 @@ export function ProxySettings() {
           {feedback.message}
         </div>
       )}
+
+      {/* Global Config */}
+      <div>
+        <h3 className="text-xs font-bold text-[rgb(var(--text-muted))] uppercase tracking-wider mb-3">
+          Camuflagem Automática
+        </h3>
+        <label className="flex items-center gap-3 p-3 rounded-xl border border-[rgb(var(--border)/0.5)] bg-[rgb(var(--bg-overlay)/0.3)] cursor-pointer hover:border-[rgb(var(--accent)/0.5)] transition-all">
+          <input
+            type="checkbox"
+            checked={settings.autoFingerprint || false}
+            onChange={(e) => updateSettings({ autoFingerprint: e.target.checked })}
+            className="w-4 h-4 rounded border-[rgb(var(--border))] text-[rgb(var(--accent))] focus:ring-0 cursor-pointer"
+          />
+          <div className="flex flex-col">
+            <span className="text-xs font-medium text-[rgb(var(--text-primary))]">
+              Sempre utilizar fingerprints diferentes
+            </span>
+            <span className="text-[10px] text-[rgb(var(--text-faint))] mt-0.5">
+              Toda nova aba criada receberá automaticamente uma máscara de navegador e sistema operacional aleatória para burlar detecções.
+            </span>
+          </div>
+        </label>
+      </div>
 
       {/* Import Section */}
       <div>
@@ -212,6 +246,13 @@ export function ProxySettings() {
                     </span>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleAssignProxy(proxy)}
+                      className="p-1 rounded text-[rgb(var(--text-faint))] hover:text-[rgb(var(--success))]"
+                      title="Atribuir Proxy"
+                    >
+                      <Check size={10} />
+                    </button>
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(proxy);

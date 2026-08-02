@@ -31,8 +31,6 @@ export function AccountSidebar() {
   const masterAccountId = useMirrorStore((s) => s.masterAccountId);
   const setMaster = useMirrorStore((s) => s.setMaster);
   const clearMaster = useMirrorStore((s) => s.clearMaster);
-  const [proxyDialogTargets, setProxyDialogTargets] = useState<string[]>([]);
-  const [proxyInput, setProxyInput] = useState("");
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId);
   const workspaceAccounts = accounts.filter((a) => a.workspaceId === activeWorkspaceId);
@@ -275,12 +273,10 @@ export function AccountSidebar() {
                 },
               },
               {
-                label: "Adicionar proxy",
+                label: "Configurar Proxy",
                 icon: <Globe size={12} />,
                 onClick: () => {
-                  const acc = accounts.find(a => a.id === contextMenu.accountId);
-                  setProxyInput(acc?.proxy || "");
-                  setProxyDialogTargets(selectedAccountIds);
+                  openDialog({ type: "assign-proxy", accountIds: selectedAccountIds });
                 },
               },
               {
@@ -293,7 +289,7 @@ export function AccountSidebar() {
                 icon: <Home size={12} />,
                 onClick: () => {
                   selectedAccountIds.forEach(id => {
-                    const acc = accounts.find(a => a.id === id);
+                    const acc = accounts.find((a) => a.id === id);
                     if (acc) window.dispatchEvent(new CustomEvent(`panel:navigate:${id}`, { detail: { url: acc.url } }));
                   });
                 },
@@ -319,8 +315,6 @@ export function AccountSidebar() {
                 label: "Editar conta",
                 icon: <Pencil size={12} />,
                 onClick: () => {
-                  // Editar opens a dialog, which doesn't really support multiple edits at once nicely.
-                  // Defaulting to only edit the clicked one.
                   openDialog({ type: "edit-account", accountId: contextMenu.accountId });
                 }
               },
@@ -360,63 +354,6 @@ export function AccountSidebar() {
           />
         )}
       </AnimatePresence>
-
-      {/* Proxy Dialog */}
-      {proxyDialogTargets.length > 0 && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setProxyDialogTargets([])} />
-          <div className="relative bg-[rgb(var(--bg-surface))] border border-[rgb(var(--border))] rounded-2xl shadow-2xl p-5 w-80 animate-scale-in z-[201]">
-            <h3 className="text-sm font-semibold text-[rgb(var(--text-primary))] mb-3">
-              Configurar Proxy {proxyDialogTargets.length > 1 ? `(${proxyDialogTargets.length} contas)` : ""}
-            </h3>
-            <input
-              type="text"
-              value={proxyInput}
-              onChange={(e) => setProxyInput(e.target.value)}
-              placeholder="host:port ou protocolo://host:port"
-              className="w-full px-3 py-2 bg-[rgb(var(--bg-overlay))] border border-[rgb(var(--border))] rounded-xl text-xs text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-faint))] focus:outline-none focus:border-[rgb(var(--accent))] font-mono mb-3"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const proxy = proxyInput.trim() || null;
-                  proxyDialogTargets.forEach(id => {
-                    invoke("panels:set-proxy", id, proxy);
-                    updateAccount(id, { proxy: proxy || undefined });
-                  });
-                  setProxyDialogTargets([]);
-                }
-              }}
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  for (const id of proxyDialogTargets) {
-                    await invoke("panels:set-proxy", id, null);
-                    updateAccount(id, { proxy: undefined });
-                  }
-                  setProxyDialogTargets([]);
-                }}
-                className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-[rgb(var(--danger)/0.1)] text-[rgb(var(--danger))] hover:bg-[rgb(var(--danger)/0.15)] transition-colors"
-              >
-                Remover
-              </button>
-              <button
-                onClick={async () => {
-                  const proxy = proxyInput.trim() || null;
-                  for (const id of proxyDialogTargets) {
-                    await invoke("panels:set-proxy", id, proxy);
-                    updateAccount(id, { proxy: proxy || undefined });
-                  }
-                  setProxyDialogTargets([]);
-                }}
-                className="flex-1 py-1.5 text-xs font-medium rounded-lg bg-[rgb(var(--accent)/0.1)] text-[rgb(var(--accent))] hover:bg-[rgb(var(--accent)/0.15)] transition-colors"
-              >
-                Aplicar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
