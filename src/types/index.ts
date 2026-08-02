@@ -82,6 +82,13 @@ export function parseProxyString(raw: string): ProxyConfig | null {
   const port = parseInt(parts[1], 10);
   if (!host || isNaN(port)) return null;
 
+  if (parts.length === 4) {
+    username = decodeURIComponent(parts[2]);
+    password = decodeURIComponent(parts[3]);
+  } else if (parts.length === 3) {
+    username = decodeURIComponent(parts[2]);
+  }
+
   return { host, port, protocol, username, password };
 }
 

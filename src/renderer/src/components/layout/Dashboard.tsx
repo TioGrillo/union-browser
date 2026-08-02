@@ -573,6 +573,7 @@ export function Dashboard() {
   const setMaximizedId = useAppStore((s) => s.setMaximizedId);
   const workspaceAccounts = accounts.filter((a) => a.workspaceId === activeWorkspaceId);
   const activeAccountsInWorkspace = workspaceAccounts.filter((a) => panelStates[a.id]);
+  const activeAccountsBackground = accounts.filter((a) => a.workspaceId !== activeWorkspaceId && panelStates[a.id]);
 
   const isMaximizedMode = !!(maximizedId && activeAccountsInWorkspace.some(a => a.id === maximizedId));
 
@@ -681,18 +682,39 @@ export function Dashboard() {
     return <EmptyDashboard />;
   }
 
+  const renderBackgroundAccounts = () => {
+    if (activeAccountsBackground.length === 0) return null;
+    return (
+      <div style={{ position: "absolute", top: -9999, left: -9999, width: 0, height: 0, overflow: "hidden", visibility: "hidden", pointerEvents: "none" }}>
+        {activeAccountsBackground.map((account) => (
+          <div key={account.id} style={{ width: 1024, height: 768 }}>
+            <PanelCell
+              account={account}
+              style={{ width: "100%", height: "100%" }}
+              isMaximized={false}
+              onToggleMaximize={() => {}}
+              onRemove={() => unmountPanel(account.id)}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   if (activeAccountsInWorkspace.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[rgb(var(--bg-base))]">
+      <div className="flex-1 flex items-center justify-center bg-[rgb(var(--bg-base))] relative">
         <div className="text-center text-[rgb(var(--text-faint))] text-sm">
           Nenhuma tela ativa. Ligue uma conta no menu lateral para visualizar.
         </div>
+        {renderBackgroundAccounts()}
       </div>
     );
   }
 
   return (
-    <div ref={gridRef} className="flex-1 p-2 overflow-hidden bg-[rgb(var(--bg-base))]">
+    <div ref={gridRef} className="flex-1 p-2 overflow-hidden bg-[rgb(var(--bg-base))] relative">
+      {renderBackgroundAccounts()}
       {/* Grid container — always keeps the full layout so webviews are never destroyed */}
       <div
         className="w-full h-full relative"
